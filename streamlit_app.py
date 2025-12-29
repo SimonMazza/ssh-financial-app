@@ -40,9 +40,12 @@ st.markdown("""
 
 # --- 2. CONNESSIONE AL DATABASE (SUPABASE) ---
 def get_db_connection():
-    # Recupera la stringa segreta dalle impostazioni di Streamlit
     db_url = st.secrets["SUPABASE_URL"]
-    # Crea il motore di connessione
+    
+    # --- CORREZIONE AUTOMATICA PER SQLALCHEMY ---
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        
     engine = create_engine(db_url)
     return engine
 
