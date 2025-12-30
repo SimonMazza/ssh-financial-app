@@ -8,68 +8,92 @@ import time
 # --- 1. CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="centered")
 
-# --- 2. CSS AVANZATO (DESIGN DEFINITIVO) ---
+# --- 2. CSS DEFINITIVO (CORREZIONI STILE) ---
 st.markdown("""
     <style>
     /* RESET GENERALE */
     .stApp { background-color: #ffffff; color: #000000; }
     h1, h2, h3, p, label { color: #000000 !important; }
 
+    /* --- SIDEBAR (Barra Laterale) --- */
+    /* Sfondo Rosso SSH per far risaltare il testo bianco */
+    [data-testid="stSidebar"] {
+        background-color: #A9093B !important;
+    }
+    /* Testo Bianco nella Sidebar */
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div, [data-testid="stSidebar"] label {
+        color: #ffffff !important;
+    }
+    /* Bottone Logout nella Sidebar (inverso per contrasto) */
+    [data-testid="stSidebar"] button {
+        background-color: #ffffff !important;
+        color: #A9093B !important;
+    }
+
     /* --- MENU A TENDINA (Selectbox) --- */
-    /* Il contenitore esterno */
+    /* Contenitore: Grigio Chiaro */
     div[data-baseweb="select"] > div {
-        background-color: #f0f2f6 !important;
-        border: 1px solid #d1d1d1 !important;
+        background-color: #e9ecef !important; /* Grigio chiaro */
+        border: 1px solid #ced4da !important;
     }
-    
-    /* IL TESTO SELEZIONATO (Acquamarina) */
+    /* Testo selezionato e Icona: Acquamarina */
     div[data-baseweb="select"] span {
-        color: #058097 !important;
-        font-weight: 800 !important; /* Molto grassetto */
+        color: #058097 !important; 
+        font-weight: 800 !important;
     }
-    
-    /* L'ICONA FRECCIA (Acquamarina) */
     div[data-baseweb="select"] svg {
         fill: #058097 !important;
-        color: #058097 !important;
     }
-    
-    /* Le opzioni quando apri il menu */
+    /* Lista opzioni dropdown */
+    ul[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
     ul[data-baseweb="menu"] li span {
         color: #058097 !important;
     }
 
-    /* --- CAMPI INPUT (Numeri e Testo) --- */
+    /* --- CAMPI INPUT (Normali) --- */
     input {
-        background-color: #f0f2f6 !important;
-        border: 1px solid #d1d1d1 !important;
+        background-color: #e9ecef !important; /* Grigio chiaro */
+        border: 1px solid #ced4da !important;
         color: #A9093B !important; /* Rosso SSH */
-        font-weight: bold;
+        font-weight: bold !important;
     }
 
-    /* --- PULSANTI (TUTTI, INCLUSO IL LOGIN) --- */
-    /* Target specifico per pulsanti normali E pulsanti nei form */
-    .stButton > button, div[data-testid="stFormSubmitButton"] > button {
-        background-color: #A9093B !important; /* Rosso Sfondo */
-        color: #ffffff !important; /* Bianco Testo */
+    /* --- CAMPI INPUT DISABILITATI (FIX VALUTA/TASSO) --- */
+    /* Streamlit tende a sbiadire i campi disabilitati. Qui forziamo la visibilità. */
+    input:disabled {
+        background-color: #e9ecef !important;
+        color: #A9093B !important; /* Forza il Rosso anche se disabilitato */
+        -webkit-text-fill-color: #A9093B !important; /* Fix per Safari/Chrome */
+        opacity: 1 !important; /* Rimuove la trasparenza */
+        border: 1px solid #ced4da !important;
+    }
+
+    /* --- PULSANTI (ENTRA e REGISTRA) --- */
+    /* Target specifico per sovrascrivere il tema */
+    button, div[data-testid="stFormSubmitButton"] > button {
+        background-color: #A9093B !important;
+        color: #ffffff !important; /* BIANCO FORZATO */
         border: none !important;
-        border-radius: 5px !important;
-        font-weight: bold !important;
-        padding: 10px 20px !important;
-        transition: 0.3s;
+        border-radius: 6px !important;
+        font-weight: 800 !important; /* BOLD */
+        padding: 0.75rem 1.5rem !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
-    /* Hover (Quando passi sopra col mouse) */
-    .stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+    /* Hover state */
+    button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
         background-color: #80052b !important;
         color: #ffffff !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
     
-    /* Focus (Quando clicchi) */
-    .stButton > button:focus, div[data-testid="stFormSubmitButton"] > button:focus {
+    /* Focus state */
+    button:focus, div[data-testid="stFormSubmitButton"] > button:focus {
         color: #ffffff !important;
-        border-color: #A9093B !important;
+        outline: none !important;
     }
 
     /* --- TABELLA --- */
@@ -117,20 +141,16 @@ def load_config_data():
         df_c = pd.DataFrame(supabase.table('COUNTRIES').select("*").execute().data)
         df_a = pd.DataFrame(supabase.table('CHARTS OF ACCOUNTS').select("*").execute().data)
         
-        # Pulizia rigorosa dei dati (rimuove spazi vuoti invisibili)
         if not df_c.empty:
             df_c.columns = df_c.columns.str.lower().str.strip()
-            # Applica strip() a tutte le celle di testo per evitare mismatch
+            # Pulisce eventuali spazi nei dati
             df_c = df_c.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
-            
-            # Trova colonna paese
             col_p = next((c for c in df_c.columns if 'paese' in c or 'country' in c), df_c.columns[0])
             df_c = df_c.sort_values(by=col_p)
             
         if not df_a.empty:
             df_a.columns = df_a.columns.str.lower().str.strip()
             df_a = df_a.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
-            
             col_cod = next((c for c in df_a.columns if 'code' in c or 'codice' in c), df_a.columns[0])
             df_a = df_a.sort_values(by=col_cod)
             
@@ -139,11 +159,12 @@ def load_config_data():
 
 # --- 6. APP PRINCIPALE ---
 def main_app():
+    # Sidebar (Ora sarà Rossa con testo Bianco grazie al CSS)
     with st.sidebar:
         st.write(f"Utente: **{st.session_state['username']}**")
         st.button("Logout", on_click=logout)
 
-    # HEADER CON LOGO
+    # HEADER
     col_logo, col_title = st.columns([1, 3])
     with col_logo:
         try:
@@ -159,7 +180,6 @@ def main_app():
 
     st.markdown("---")
 
-    # --- SELEZIONE PAESE ---
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         col_p = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
@@ -169,28 +189,23 @@ def main_app():
     with col2:
         d_chius = st.date_input("Data di Chiusura", date.today())
 
-    # --- LOGICA VALUTA ROBUSTA ---
     val_code, tasso, note = "", 0.0, ""
     
     if sel_country:
         try:
-            # Trova la riga esatta
+            # Ricerca Valuta più robusta
             row = df_countries[df_countries[col_p] == sel_country].iloc[0]
-            
-            # Cerca colonne valuta con vari nomi possibili
+            # Cerca colonne che contengono 'curr', 'val', 'sym'
             possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c]
             
             if possible_cols:
                 col_v = possible_cols[0]
                 val_code = str(row[col_v]).strip()
+                if val_code == 'nan': val_code = "EUR"
             else:
                 val_code = "EUR"
-            
-            # Se la valuta è vuota o nan, forza EUR o errore
-            if val_code == 'nan' or val_code == '': val_code = "EUR"
 
-            # API CAMBIO
-            if val_code != 'EUR':
+            if val_code and val_code != 'EUR':
                 api = st.secrets["EXCHANGERATE_API_KEY"]
                 try:
                     url = f"https://v6.exchangerate-api.com/v6/{api}/history/{val_code}/{d_chius.year}/{d_chius.month}/{d_chius.day}"
@@ -198,26 +213,22 @@ def main_app():
                     if res.status_code == 403: raise Exception
                     tasso = res.json()['conversion_rates']['EUR']
                 except:
-                    try:
+                    try: 
                         tasso = requests.get(f"https://v6.exchangerate-api.com/v6/{api}/latest/{val_code}").json()['conversion_rates']['EUR']
                         note = "⚠️ Cambio Odierno"
-                    except:
-                        tasso = 0.0
+                    except: 
                         note = "Errore API"
-            else:
+            elif val_code == 'EUR':
                 tasso = 1.0
 
         except Exception as e:
-            st.error(f"Errore recupero dati paese: {e}")
+            val_code = "ERR"
 
-    # DISPLAY VALUTA
     with col3: st.text_input("Valuta", value=val_code, disabled=True)
     with col4: st.text_input("Tasso vs EUR", value=f"{tasso:.6f}", disabled=True, help=note)
 
-    # --- TABELLA INPUT ---
     st.subheader("Inserimento Dati")
     col_cod = next((c for c in df_accounts.columns if 'code' in c or 'codice' in c), df_accounts.columns[0])
-    # Tenta di trovare descrizione, se no usa la colonna successiva al codice
     other_cols = [c for c in df_accounts.columns if c != col_cod]
     col_desc = next((c for c in other_cols if 'desc' in c), other_cols[0] if other_cols else col_cod)
     
@@ -231,7 +242,7 @@ def main_app():
         "Importo": st.column_config.NumberColumn("Importo", format="%.2f")
     }, use_container_width=True, hide_index=True, height=500)
 
-    # --- SALVATAGGIO ---
+    # PULSANTE DI REGISTRAZIONE (CSS forzato a bianco/bold)
     if st.button("REGISTRA NEL DATABASE", type="primary"):
         if not sel_country: 
             st.error("Seleziona Paese"); return
@@ -260,7 +271,6 @@ def main_app():
 # --- 7. PAGINA LOGIN ---
 if not st.session_state['logged_in']:
     st.markdown("<br><br>", unsafe_allow_html=True)
-    
     try:
         st.image("icon_RGB-01.png", width=200)
     except:
@@ -272,9 +282,8 @@ if not st.session_state['logged_in']:
         st.text_input("USERNAME", key="input_user")
         st.text_input("PASSWORD", type="password", key="input_pwd")
         
-        # IL BOTTONE QUI SOTTO ORA SARÀ ROSSO GRAZIE AL NUOVO CSS
+        # IL PULSANTE DI LOGIN ORA HA IL TESTO BIANCO GRAZIE AL CSS
         submit = st.form_submit_button("ENTRA")
-        
         if submit:
             check_login()
             if st.session_state['logged_in']: st.rerun()
