@@ -8,7 +8,7 @@ import time
 # --- 1. CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="centered")
 
-# --- 2. CSS DEFINITIVO (CORREZIONI STILE) ---
+# --- 2. CSS DEFINITIVO (NO HOVER) ---
 st.markdown("""
     <style>
     /* RESET GENERALE */
@@ -16,24 +16,24 @@ st.markdown("""
     h1, h2, h3, p, label { color: #000000 !important; }
 
     /* --- SIDEBAR (Barra Laterale) --- */
-    /* Sfondo Rosso SSH per far risaltare il testo bianco */
+    /* Sfondo Rosso SSH */
     [data-testid="stSidebar"] {
-        background-color: #525252 !important;
+        background-color: #A9093B !important;
     }
     /* Testo Bianco nella Sidebar */
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div, [data-testid="stSidebar"] label {
         color: #ffffff !important;
     }
-    /* Bottone Logout nella Sidebar (inverso per contrasto) */
+    /* Bottone Logout nella Sidebar */
     [data-testid="stSidebar"] button {
         background-color: #ffffff !important;
         color: #A9093B !important;
     }
 
     /* --- MENU A TENDINA (Selectbox) --- */
-    /* Contenitore: Grigio Chiaro */
+    /* Contenitore */
     div[data-baseweb="select"] > div {
-        background-color: #C0C0C0 !important; /* Grigio chiaro */
+        background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
     }
     /* Testo selezionato e Icona: Acquamarina */
@@ -44,7 +44,7 @@ st.markdown("""
     div[data-baseweb="select"] svg {
         fill: #058097 !important;
     }
-    /* Lista opzioni dropdown */
+    /* Lista opzioni */
     ul[data-baseweb="menu"] {
         background-color: #ffffff !important;
     }
@@ -52,48 +52,49 @@ st.markdown("""
         color: #058097 !important;
     }
 
-    /* --- CAMPI INPUT (Normali) --- */
+    /* --- CAMPI INPUT --- */
     input {
-        background-color: #e9ecef !important; /* Grigio chiaro */
+        background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
         color: #A9093B !important; /* Rosso SSH */
         font-weight: bold !important;
     }
 
     /* --- CAMPI INPUT DISABILITATI (FIX VALUTA/TASSO) --- */
-    /* Streamlit tende a sbiadire i campi disabilitati. Qui forziamo la visibilità. */
     input:disabled {
         background-color: #e9ecef !important;
-        color: #A9093B !important; /* Forza il Rosso anche se disabilitato */
-        -webkit-text-fill-color: #A9093B !important; /* Fix per Safari/Chrome */
-        opacity: 1 !important; /* Rimuove la trasparenza */
+        color: #A9093B !important;
+        -webkit-text-fill-color: #A9093B !important;
+        opacity: 1 !important;
         border: 1px solid #ced4da !important;
     }
 
     /* --- PULSANTI (ENTRA e REGISTRA) --- */
-    /* Target specifico per sovrascrivere il tema */
+    /* Stile Base */
     button, div[data-testid="stFormSubmitButton"] > button {
-        background-color: #A9093B !important;
-        color: #ffffff !important; /* BIANCO FORZATO */
+        background-color: #A9093B !important; /* Rosso SSH */
+        color: #ffffff !important; /* Bianco */
         border: none !important;
         border-radius: 6px !important;
-        font-weight: 800 !important; /* BOLD */
+        font-weight: 800 !important;
         padding: 0.75rem 1.5rem !important;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
     
-    /* Hover state */
+    /* MODIFICA: STATO HOVER IDENTICO ALLA BASE (Nessun effetto) */
     button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #80052b !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        background-color: #A9093B !important; /* Rimane lo stesso rosso */
+        color: #ffffff !important; /* Rimane bianco */
+        box-shadow: none !important; /* Nessuna ombra */
+        border: none !important;
     }
     
     /* Focus state */
     button:focus, div[data-testid="stFormSubmitButton"] > button:focus {
         color: #ffffff !important;
         outline: none !important;
+        background-color: #A9093B !important;
     }
 
     /* --- TABELLA --- */
@@ -143,7 +144,6 @@ def load_config_data():
         
         if not df_c.empty:
             df_c.columns = df_c.columns.str.lower().str.strip()
-            # Pulisce eventuali spazi nei dati
             df_c = df_c.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
             col_p = next((c for c in df_c.columns if 'paese' in c or 'country' in c), df_c.columns[0])
             df_c = df_c.sort_values(by=col_p)
@@ -159,7 +159,6 @@ def load_config_data():
 
 # --- 6. APP PRINCIPALE ---
 def main_app():
-    # Sidebar (Ora sarà Rossa con testo Bianco grazie al CSS)
     with st.sidebar:
         st.write(f"Utente: **{st.session_state['username']}**")
         st.button("Logout", on_click=logout)
@@ -193,9 +192,7 @@ def main_app():
     
     if sel_country:
         try:
-            # Ricerca Valuta più robusta
             row = df_countries[df_countries[col_p] == sel_country].iloc[0]
-            # Cerca colonne che contengono 'curr', 'val', 'sym'
             possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c]
             
             if possible_cols:
@@ -242,7 +239,6 @@ def main_app():
         "Importo": st.column_config.NumberColumn("Importo", format="%.2f")
     }, use_container_width=True, hide_index=True, height=500)
 
-    # PULSANTE DI REGISTRAZIONE (CSS forzato a bianco/bold)
     if st.button("REGISTRA NEL DATABASE", type="primary"):
         if not sel_country: 
             st.error("Seleziona Paese"); return
@@ -268,7 +264,7 @@ def main_app():
                 st.success("✅ Dati salvati!"); time.sleep(2); st.rerun()
             except Exception as e: st.error(f"Errore: {e}")
 
-# --- 7. PAGINA LOGIN ---
+# --- 7. LOGIN PAGE ---
 if not st.session_state['logged_in']:
     st.markdown("<br><br>", unsafe_allow_html=True)
     try:
@@ -281,8 +277,6 @@ if not st.session_state['logged_in']:
     with st.form("login_form"):
         st.text_input("USERNAME", key="input_user")
         st.text_input("PASSWORD", type="password", key="input_pwd")
-        
-        # IL PULSANTE DI LOGIN ORA HA IL TESTO BIANCO GRAZIE AL CSS
         submit = st.form_submit_button("ENTRA")
         if submit:
             check_login()
