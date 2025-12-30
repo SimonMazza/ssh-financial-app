@@ -8,43 +8,44 @@ import time
 # --- 1. CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="centered")
 
-# --- 2. CSS DEFINITIVO (NO HOVER) ---
+# --- 2. CSS DEFINITIVO (PERFETTO) ---
 st.markdown("""
     <style>
-    /* RESET GENERALE */
+    /* RESET GENERALE: Sfondo Bianco, Testo Nero */
     .stApp { background-color: #ffffff; color: #000000; }
-    h1, h2, h3, p, label { color: #000000 !important; }
+    h1, h2, h3, h4, h5, h6, p, label, .stMarkdown { color: #000000 !important; }
 
-    /* --- SIDEBAR (Barra Laterale) --- */
-    /* Sfondo Rosso SSH */
+    /* --- SIDEBAR (Barra Laterale Rossa) --- */
     [data-testid="stSidebar"] {
-        background-color: #A9093B !important;
+        background-color: #A9093B !important; /* Rosso SSH */
     }
-    /* Testo Bianco nella Sidebar */
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div, [data-testid="stSidebar"] label {
+    /* Testi nella sidebar BIANCHI */
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
         color: #ffffff !important;
     }
-    /* Bottone Logout nella Sidebar */
+    /* Pulsante Logout nella sidebar (Inverso) */
     [data-testid="stSidebar"] button {
         background-color: #ffffff !important;
         color: #A9093B !important;
+        border: none !important;
     }
 
     /* --- MENU A TENDINA (Selectbox) --- */
-    /* Contenitore */
+    /* Contenitore esterno: Grigio Chiaro */
     div[data-baseweb="select"] > div {
         background-color: #e9ecef !important;
         border: 1px solid #ced4da !important;
     }
-    /* Testo selezionato e Icona: Acquamarina */
+    /* Testo dell'opzione selezionata: Acquamarina */
     div[data-baseweb="select"] span {
-        color: #058097 !important; 
+        color: #058097 !important;
         font-weight: 800 !important;
     }
+    /* Icona Freccia: Acquamarina */
     div[data-baseweb="select"] svg {
         fill: #058097 !important;
     }
-    /* Lista opzioni */
+    /* Lista delle opzioni (dropdown aperto) */
     ul[data-baseweb="menu"] {
         background-color: #ffffff !important;
     }
@@ -52,15 +53,15 @@ st.markdown("""
         color: #058097 !important;
     }
 
-    /* --- CAMPI INPUT --- */
+    /* --- CAMPI INPUT (Numeri, Testo, Password, Date) --- */
     input {
-        background-color: #e9ecef !important;
+        background-color: #e9ecef !important; /* Grigio chiaro */
         border: 1px solid #ced4da !important;
         color: #A9093B !important; /* Rosso SSH */
         font-weight: bold !important;
     }
-
-    /* --- CAMPI INPUT DISABILITATI (FIX VALUTA/TASSO) --- */
+    
+    /* CAMPI DISABILITATI (Fix per vederli bene) */
     input:disabled {
         background-color: #e9ecef !important;
         color: #A9093B !important;
@@ -69,42 +70,43 @@ st.markdown("""
         border: 1px solid #ced4da !important;
     }
 
-    /* --- PULSANTI (ENTRA e REGISTRA) --- */
-    /* Stile Base */
+    /* --- PULSANTI (ENTRA, REGISTRA) --- */
+    /* Applichiamo lo stile a TUTTI i bottoni, inclusi quelli dei form */
     button, div[data-testid="stFormSubmitButton"] > button {
         background-color: #A9093B !important; /* Rosso SSH */
-        color: #ffffff !important; /* Bianco */
+        color: #ffffff !important; /* TESTO BIANCO */
         border: none !important;
         border-radius: 6px !important;
         font-weight: 800 !important;
         padding: 0.75rem 1.5rem !important;
         text-transform: uppercase;
         letter-spacing: 1px;
+        box-shadow: none !important;
     }
     
-    /* MODIFICA: STATO HOVER IDENTICO ALLA BASE (Nessun effetto) */
+    /* STATO HOVER (Mouse sopra) - IDENTICO AL NORMALE (Nessun effetto) */
     button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #A9093B !important; /* Rimane lo stesso rosso */
-        color: #ffffff !important; /* Rimane bianco */
-        box-shadow: none !important; /* Nessuna ombra */
+        background-color: #A9093B !important; /* Rimane Rosso */
+        color: #ffffff !important; /* Rimane Bianco */
+        box-shadow: none !important;
         border: none !important;
     }
-    
-    /* Focus state */
-    button:focus, div[data-testid="stFormSubmitButton"] > button:focus {
+
+    /* STATO FOCUS/ACTIVE */
+    button:focus, div[data-testid="stFormSubmitButton"] > button:focus, button:active {
+        background-color: #A9093B !important;
         color: #ffffff !important;
         outline: none !important;
-        background-color: #A9093B !important;
     }
 
-    /* --- TABELLA --- */
+    /* --- TABELLA DATI --- */
     [data-testid="stDataFrame"] { background-color: #f8f9fa !important; }
     [data-testid="stDataFrame"] th { background-color: #e0e0e0 !important; color: #000000 !important; }
 
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CONNESSIONE ---
+# --- 3. CONNESSIONE SUPABASE ---
 @st.cache_resource
 def init_connection():
     try:
@@ -163,13 +165,14 @@ def main_app():
         st.write(f"Utente: **{st.session_state['username']}**")
         st.button("Logout", on_click=logout)
 
-    # HEADER
-    col_logo, col_title = st.columns([1, 3])
+    # HEADER APP
+    col_logo, col_title = st.columns([1, 4])
     with col_logo:
         try:
-            st.image("icon_RGB-01.png", width=130)
+            # Larghezza 150px per visualizzazione (il file originale è 2000px, sarà nitidissimo)
+            st.image("icon_RGB-01.png", width=150)
         except:
-            st.warning("Logo mancante")
+            st.warning("Logo non trovato")
     with col_title:
         st.title("SSH Annual Report")
         st.caption("Financial Data Entry System")
@@ -194,13 +197,10 @@ def main_app():
         try:
             row = df_countries[df_countries[col_p] == sel_country].iloc[0]
             possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c]
-            
             if possible_cols:
-                col_v = possible_cols[0]
-                val_code = str(row[col_v]).strip()
+                val_code = str(row[possible_cols[0]]).strip()
                 if val_code == 'nan': val_code = "EUR"
-            else:
-                val_code = "EUR"
+            else: val_code = "EUR"
 
             if val_code and val_code != 'EUR':
                 api = st.secrets["EXCHANGERATE_API_KEY"]
@@ -213,13 +213,9 @@ def main_app():
                     try: 
                         tasso = requests.get(f"https://v6.exchangerate-api.com/v6/{api}/latest/{val_code}").json()['conversion_rates']['EUR']
                         note = "⚠️ Cambio Odierno"
-                    except: 
-                        note = "Errore API"
-            elif val_code == 'EUR':
-                tasso = 1.0
-
-        except Exception as e:
-            val_code = "ERR"
+                    except: note = "Errore API"
+            elif val_code == 'EUR': tasso = 1.0
+        except: val_code = "ERR"
 
     with col3: st.text_input("Valuta", value=val_code, disabled=True)
     with col4: st.text_input("Tasso vs EUR", value=f"{tasso:.6f}", disabled=True, help=note)
@@ -240,9 +236,7 @@ def main_app():
     }, use_container_width=True, hide_index=True, height=500)
 
     if st.button("REGISTRA NEL DATABASE", type="primary"):
-        if not sel_country: 
-            st.error("Seleziona Paese"); return
-        
+        if not sel_country: st.error("Seleziona Paese"); return
         to_save = edited_df[edited_df['Importo'] != 0]
         if to_save.empty: st.warning("Inserisci importo"); return
 
@@ -264,11 +258,12 @@ def main_app():
                 st.success("✅ Dati salvati!"); time.sleep(2); st.rerun()
             except Exception as e: st.error(f"Errore: {e}")
 
-# --- 7. LOGIN PAGE ---
+# --- 7. PAGINA LOGIN ---
 if not st.session_state['logged_in']:
     st.markdown("<br><br>", unsafe_allow_html=True)
     try:
-        st.image("icon_RGB-01.png", width=200)
+        # LOGO LOGIN: Impostato a 250px. Essendo il file 2000px, sarà nitidissimo.
+        st.image("icon_RGB-01.png", width=250)
     except:
         st.header("SSH FINANCIAL")
         
@@ -277,7 +272,10 @@ if not st.session_state['logged_in']:
     with st.form("login_form"):
         st.text_input("USERNAME", key="input_user")
         st.text_input("PASSWORD", type="password", key="input_pwd")
+        
+        # Questo pulsante ora sarà ROSSO con testo BIANCO grazie al CSS sopra
         submit = st.form_submit_button("ENTRA")
+        
         if submit:
             check_login()
             if st.session_state['logged_in']: st.rerun()
