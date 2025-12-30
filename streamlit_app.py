@@ -18,7 +18,7 @@ st.markdown("""
     /* --- SIDEBAR (Barra Laterale) --- */
     /* Sfondo Rosso SSH per far risaltare il testo bianco */
     [data-testid="stSidebar"] {
-        background-color: #A9093B !important;
+        background-color: #525252 !important;
     }
     /* Testo Bianco nella Sidebar */
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div, [data-testid="stSidebar"] label {
@@ -33,7 +33,7 @@ st.markdown("""
     /* --- MENU A TENDINA (Selectbox) --- */
     /* Contenitore: Grigio Chiaro */
     div[data-baseweb="select"] > div {
-        background-color: #e9ecef !important; /* Grigio chiaro */
+        background-color: #C0C0C0 !important; /* Grigio chiaro */
         border: 1px solid #ced4da !important;
     }
     /* Testo selezionato e Icona: Acquamarina */
