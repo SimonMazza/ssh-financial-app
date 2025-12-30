@@ -20,33 +20,39 @@ st.markdown("""
 # --- 2. CONNESSIONE SUPABASE ---
 @st.cache_resource
 def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error("Errore nella configurazione dei Secrets. Controlla SUPABASE_URL e SUPABASE_KEY.")
+        return None
 
 supabase = init_connection()
 
 # --- 3. CARICAMENTO DATI ---
 @st.cache_data(ttl=600)
 def load_config_data():
+    if not supabase: return pd.DataFrame(), pd.DataFrame()
     try:
         # Carica tabella COUNTRIES
         res_c = supabase.table('COUNTRIES').select("*").execute()
         df_c = pd.DataFrame(res_c.data)
         
-        # Carica tabella CHARTS OF ACCOUNTS (Gestisce gli spazi nel nome)
+        # Carica tabella CHARTS OF ACCOUNTS
         res_a = supabase.table('CHARTS OF ACCOUNTS').select("*").execute()
         df_a = pd.DataFrame(res_a.data)
         
-        # NORMALIZZAZIONE COLONNE (Tutto minuscolo per evitare errori)
-        # Così 'Currency Symbol', 'CURRENCY', 'currency' diventano tutti 'currency...'
+        # NORMALIZZAZIONE COLONNE (Tutto minuscolo per evitare errori di lettura)
         if not df_c.empty:
             df_c.columns = df_c.columns.str.lower()
-            df_c = df_c.sort_values(by=df_c.columns[0]) # Ordina per la prima colonna (Paese)
+            # Cerca la colonna paese per ordinare
+            col_paese = next((c for c in df_c.columns if 'paese' in c or 'country' in c), df_c.columns[0])
+            df_c = df_c.sort_values(by=col_paese)
             
         if not df_a.empty:
             df_a.columns = df_a.columns.str.lower()
-            # Cerca di ordinare per codice
+            # Cerca la colonna codice per ordinare
             col_code = next((c for c in df_a.columns if 'code' in c or 'codice' in c), df_a.columns[0])
             df_a = df_a.sort_values(by=col_code)
             
@@ -69,7 +75,7 @@ def main():
     df_countries, df_accounts = load_config_data()
 
     if df_countries.empty or df_accounts.empty:
-        st.warning("⚠️ Impossibile caricare i dati. Verifica che le tabelle 'COUNTRIES' e 'CHARTS OF ACCOUNTS' esistano su Supabase e abbiano dati.")
+        st.warning("⚠️ Impossibile caricare i dati. Verifica che le tabelle 'COUNTRIES' e 'CHARTS OF ACCOUNTS' esistano su Supabase.")
         st.stop()
 
     st.divider()
@@ -78,7 +84,7 @@ def main():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        # Trova la colonna paese (paese, country, name...)
+        # Trova la colonna paese (es. paese, country...)
         col_paese = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
         lista_paesi = df_countries[col_paese].unique().tolist()
         selected_country = st.selectbox("Seleziona Paese", [""] + lista_paesi)
@@ -100,7 +106,7 @@ def main():
         if col_valuta:
             valuta_code = row[col_valuta]
         else:
-            valuta_code = "EUR" # Fallback se non trova la colonna
+            valuta_code = "EUR"
             
         # API Cambio
         if valuta_code != 'EUR':
@@ -130,11 +136,12 @@ def main():
     # Identifica colonne codice e descrizione
     cols_acc = df_accounts.columns
     c_code = next((c for c in cols_acc if 'code' in c or 'codice' in c), cols_acc[0])
+    # Tenta di trovare la descrizione, altrimenti usa la seconda colonna
     c_desc = next((c for c in cols_acc if 'desc' in c), cols_acc[1] if len(cols_acc)>1 else cols_acc[0])
     
     # Crea tabella per editor
     input_df = df_accounts[[c_code, c_desc]].copy()
-    input_df.columns = ['Codice', 'Descrizione'] # Rinomina per l'utente
+    input_df.columns = ['Codice', 'Descrizione'] 
     input_df['Importo'] = 0.00
     
     edited_df = st.data_editor(
@@ -164,20 +171,15 @@ def main():
             try:
                 records = []
                 for _, row in to_save.iterrows():
-                    # Creiamo il record da salvare
-                    # IMPORTANTE: Qui uso i nomi colonne "standard" (minuscolo) per il DB.
-                    # Supabase mappera' automaticamente se le colonne nel DB si chiamano
-                    # 'paese', 'anno', 'valuta', ecc.
+                    # MAPPATURA ESATTA COLONNE MAIUSCOLE/SPAZI
                     records.append({
-                        "paese": selected_country,
-                        "anno": int(data_chiusura.year),
-                        "valuta": valuta_code,
-                        "tasso": float(tasso),
-                        "data_chiusura": data_chiusura.isoformat(),
-                        "codice": str(row['Codice']),
-                        "descrizione": str(row['Descrizione']),
-                        "importo": float(row['Importo']),
-                        "tipo": "Input"
+                        "PAESE": selected_country,
+                        "ANNO": int(data_chiusura.year),
+                        "VALUTA": valuta_code,
+                        "TASSO DI CAMBIO": float(tasso),
+                        "DATA CHIUSURA": data_chiusura.isoformat(),
+                        "CODICE CONTO": str(row['Codice']),
+                        "IMPORTO": float(row['Importo'])
                     })
                 
                 # Inserimento nella tabella 'DATABASE'
@@ -188,7 +190,7 @@ def main():
                 
             except Exception as e:
                 st.error(f"Errore durante il salvataggio: {e}")
-                st.info("Suggerimento: Controlla che le colonne nella tabella 'DATABASE' su Supabase esistano (paese, anno, valuta, importo...).")
+                st.write("Verifica che i nomi delle colonne su Supabase siano esattamente: PAESE, ANNO, VALUTA, TASSO DI CAMBIO, DATA CHIUSURA, CODICE CONTO, IMPORTO.")
 
 if __name__ == "__main__":
     main()
