@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from supabase import create_client, Client
-from datetime import date
+from datetime import date, datetime # <--- MODIFICA 1: Aggiunto datetime
 
 # --- 1. CONFIGURAZIONE PAGINA E STILE ---
 st.set_page_config(page_title="SSH Financial", page_icon="💰", layout="wide")
@@ -43,16 +43,14 @@ def load_config_data():
         res_a = supabase.table('CHARTS OF ACCOUNTS').select("*").execute()
         df_a = pd.DataFrame(res_a.data)
         
-        # NORMALIZZAZIONE COLONNE (Tutto minuscolo per evitare errori di lettura)
+        # NORMALIZZAZIONE COLONNE
         if not df_c.empty:
             df_c.columns = df_c.columns.str.lower()
-            # Cerca la colonna paese per ordinare
             col_paese = next((c for c in df_c.columns if 'paese' in c or 'country' in c), df_c.columns[0])
             df_c = df_c.sort_values(by=col_paese)
             
         if not df_a.empty:
             df_a.columns = df_a.columns.str.lower()
-            # Cerca la colonna codice per ordinare
             col_code = next((c for c in df_a.columns if 'code' in c or 'codice' in c), df_a.columns[0])
             df_a = df_a.sort_values(by=col_code)
             
@@ -65,17 +63,15 @@ def load_config_data():
 def main():
     col_logo, col_title = st.columns([1, 4])
     with col_logo:
-        # Inserisci qui il link del tuo logo
         st.image("https://via.placeholder.com/150x80/A9093B/ffffff?text=SSH+LOGO", width=150)
     with col_title:
         st.title("SSH Financial System")
         st.caption("Database: Supabase SQL")
 
-    # Carica Configurazione
     df_countries, df_accounts = load_config_data()
 
     if df_countries.empty or df_accounts.empty:
-        st.warning("⚠️ Impossibile caricare i dati. Verifica che le tabelle 'COUNTRIES' e 'CHARTS OF ACCOUNTS' esistano su Supabase.")
+        st.warning("⚠️ Impossibile caricare i dati.")
         st.stop()
 
     st.divider()
@@ -84,7 +80,6 @@ def main():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        # Trova la colonna paese (es. paese, country...)
         col_paese = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
         lista_paesi = df_countries[col_paese].unique().tolist()
         selected_country = st.selectbox("Seleziona Paese", [""] + lista_paesi)
@@ -99,27 +94,21 @@ def main():
 
     if selected_country:
         row = df_countries[df_countries[col_paese] == selected_country].iloc[0]
-        
-        # Cerca la colonna valuta (currency symbol, valuta, code...)
         col_valuta = next((c for c in df_countries.columns if 'currency' in c or 'valuta' in c or 'symbol' in c), None)
         
-        if col_valuta:
-            valuta_code = row[col_valuta]
-        else:
-            valuta_code = "EUR"
+        if col_valuta: valuta_code = row[col_valuta]
+        else: valuta_code = "EUR"
             
-        # API Cambio
         if valuta_code != 'EUR':
             api_key = st.secrets["EXCHANGERATE_API_KEY"]
             try:
-                # Storico
                 url = f"https://v6.exchangerate-api.com/v6/{api_key}/history/{valuta_code}/{data_chiusura.year}/{data_chiusura.month}/{data_chiusura.day}"
                 res = requests.get(url)
                 if res.status_code == 403: raise Exception("Plan Limit")
                 data = res.json()
                 if data['result'] == 'success': tasso = data['conversion_rates']['EUR']
             except:
-                try: # Fallback Oggi
+                try: 
                     url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{valuta_code}"
                     res = requests.get(url).json()
                     tasso = res['conversion_rates']['EUR']
@@ -132,14 +121,10 @@ def main():
 
     # --- EDITOR TABELLA ---
     st.subheader("Inserimento Saldi")
-    
-    # Identifica colonne codice e descrizione
     cols_acc = df_accounts.columns
     c_code = next((c for c in cols_acc if 'code' in c or 'codice' in c), cols_acc[0])
-    # Tenta di trovare la descrizione, altrimenti usa la seconda colonna
     c_desc = next((c for c in cols_acc if 'desc' in c), cols_acc[1] if len(cols_acc)>1 else cols_acc[0])
     
-    # Crea tabella per editor
     input_df = df_accounts[[c_code, c_desc]].copy()
     input_df.columns = ['Codice', 'Descrizione'] 
     input_df['Importo'] = 0.00
@@ -170,9 +155,17 @@ def main():
         with st.spinner("Salvataggio su Supabase..."):
             try:
                 records = []
-                for _, row in to_save.iterrows():
-                    # MAPPATURA ESATTA COLONNE MAIUSCOLE/SPAZI
+                # Calcoliamo il timestamp ADESSO per usarlo come ID univoco
+                # Attenzione: se inserisci molte righe insieme, è meglio aggiungere un contatore 
+                # o usare un UUID, ma per ora usiamo il timestamp corrente
+                current_time = datetime.now().isoformat()
+                
+                for idx, row in to_save.iterrows():
+                    # Creiamo un ID univoco aggiungendo l'indice per evitare duplicati esatti al millisecondo
+                    unique_id = datetime.now().isoformat()
+                    
                     records.append({
+                        "ID": unique_id, # <--- MODIFICA 2: Invio l'ID come Timestamp
                         "PAESE": selected_country,
                         "ANNO": int(data_chiusura.year),
                         "VALUTA": valuta_code,
@@ -182,15 +175,14 @@ def main():
                         "IMPORTO": float(row['Importo'])
                     })
                 
-                # Inserimento nella tabella 'DATABASE'
                 supabase.table('DATABASE').insert(records).execute()
                 
-                st.success(f"✅ Dati salvati con successo nella tabella DATABASE!")
+                st.success(f"✅ Dati salvati con successo!")
                 st.balloons()
                 
             except Exception as e:
                 st.error(f"Errore durante il salvataggio: {e}")
-                st.write("Verifica che i nomi delle colonne su Supabase siano esattamente: PAESE, ANNO, VALUTA, TASSO DI CAMBIO, DATA CHIUSURA, CODICE CONTO, IMPORTO.")
+                st.write("Dettaglio errore:", e)
 
 if __name__ == "__main__":
     main()
