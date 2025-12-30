@@ -8,60 +8,74 @@ import time
 # --- 1. CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="centered")
 
-# --- 2. CSS AVANZATO (DESIGN) ---
+# --- 2. CSS AVANZATO (DESIGN DEFINITIVO) ---
 st.markdown("""
     <style>
-    /* RESET SFONDO E TESTO */
+    /* RESET GENERALE */
     .stApp { background-color: #ffffff; color: #000000; }
-    h1, h2, h3 { color: #000000 !important; }
+    h1, h2, h3, p, label { color: #000000 !important; }
 
-    /* --- MENU A TENDINA (SELECTBOX) --- */
-    
-    /* Contenitore principale del menu: Sfondo Grigio Chiaro */
+    /* --- MENU A TENDINA (Selectbox) --- */
+    /* Il contenitore esterno */
     div[data-baseweb="select"] > div {
         background-color: #f0f2f6 !important;
         border: 1px solid #d1d1d1 !important;
     }
     
-    /* Testo del valore selezionato: Acquamarina */
-    div[data-baseweb="select"] div {
+    /* IL TESTO SELEZIONATO (Acquamarina) */
+    div[data-baseweb="select"] span {
         color: #058097 !important;
-        font-weight: bold;
+        font-weight: 800 !important; /* Molto grassetto */
     }
     
-    /* Icona Freccia (SVG): Acquamarina */
+    /* L'ICONA FRECCIA (Acquamarina) */
     div[data-baseweb="select"] svg {
         fill: #058097 !important;
+        color: #058097 !important;
     }
     
-    /* Opzioni nel menu a discesa (quando aperto) */
-    ul[data-baseweb="menu"] li {
-        color: #058097 !important; /* Acquamarina anche nella lista */
+    /* Le opzioni quando apri il menu */
+    ul[data-baseweb="menu"] li span {
+        color: #058097 !important;
     }
 
-    /* --- CAMPI INPUT (TESTO E NUMERI) --- */
+    /* --- CAMPI INPUT (Numeri e Testo) --- */
     input {
         background-color: #f0f2f6 !important;
         border: 1px solid #d1d1d1 !important;
         color: #A9093B !important; /* Rosso SSH */
         font-weight: bold;
     }
+
+    /* --- PULSANTI (TUTTI, INCLUSO IL LOGIN) --- */
+    /* Target specifico per pulsanti normali E pulsanti nei form */
+    .stButton > button, div[data-testid="stFormSubmitButton"] > button {
+        background-color: #A9093B !important; /* Rosso Sfondo */
+        color: #ffffff !important; /* Bianco Testo */
+        border: none !important;
+        border-radius: 5px !important;
+        font-weight: bold !important;
+        padding: 10px 20px !important;
+        transition: 0.3s;
+    }
     
-    /* --- LABELS --- */
-    label p { font-size: 14px !important; font-weight: bold !important; color: #000000 !important; }
+    /* Hover (Quando passi sopra col mouse) */
+    .stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #80052b !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Focus (Quando clicchi) */
+    .stButton > button:focus, div[data-testid="stFormSubmitButton"] > button:focus {
+        color: #ffffff !important;
+        border-color: #A9093B !important;
+    }
 
     /* --- TABELLA --- */
     [data-testid="stDataFrame"] { background-color: #f8f9fa !important; }
     [data-testid="stDataFrame"] th { background-color: #e0e0e0 !important; color: #000000 !important; }
 
-    /* --- PULSANTI --- */
-    .stButton>button {
-        background-color: #A9093B !important;
-        color: white !important;
-        font-weight: bold;
-        border: none;
-    }
-    .stButton>button:hover { background-color: #80052b !important; color: white !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -82,7 +96,6 @@ def check_login():
     user = st.session_state['input_user']
     pwd = st.session_state['input_pwd']
     try:
-        # Verifica credenziali su Supabase
         response = supabase.table('UTENTI').select("*").eq('UTENTE', user).eq('PWD', pwd).execute()
         if len(response.data) > 0:
             st.session_state['logged_in'] = True
@@ -104,17 +117,20 @@ def load_config_data():
         df_c = pd.DataFrame(supabase.table('COUNTRIES').select("*").execute().data)
         df_a = pd.DataFrame(supabase.table('CHARTS OF ACCOUNTS').select("*").execute().data)
         
-        # Pulizia nomi colonne e rimozione spazi extra
+        # Pulizia rigorosa dei dati (rimuove spazi vuoti invisibili)
         if not df_c.empty:
             df_c.columns = df_c.columns.str.lower().str.strip()
-            # Cerca colonna paese
+            # Applica strip() a tutte le celle di testo per evitare mismatch
+            df_c = df_c.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+            
+            # Trova colonna paese
             col_p = next((c for c in df_c.columns if 'paese' in c or 'country' in c), df_c.columns[0])
-            # Rimuove spazi dai valori dei paesi per match precisi
-            df_c[col_p] = df_c[col_p].astype(str).str.strip()
             df_c = df_c.sort_values(by=col_p)
             
         if not df_a.empty:
             df_a.columns = df_a.columns.str.lower().str.strip()
+            df_a = df_a.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+            
             col_cod = next((c for c in df_a.columns if 'code' in c or 'codice' in c), df_a.columns[0])
             df_a = df_a.sort_values(by=col_cod)
             
@@ -133,7 +149,7 @@ def main_app():
         try:
             st.image("icon_RGB-01.png", width=130)
         except:
-            st.warning("Logo 'icon_RGB-01.png' mancante")
+            st.warning("Logo mancante")
     with col_title:
         st.title("SSH Annual Report")
         st.caption("Financial Data Entry System")
@@ -143,10 +159,9 @@ def main_app():
 
     st.markdown("---")
 
-    # --- SELEZIONE PAESE E DATA ---
+    # --- SELEZIONE PAESE ---
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        # Trova la colonna paese
         col_p = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
         lista_paesi = df_countries[col_p].unique().tolist()
         sel_country = st.selectbox("Seleziona Paese", [""] + lista_paesi)
@@ -154,54 +169,57 @@ def main_app():
     with col2:
         d_chius = st.date_input("Data di Chiusura", date.today())
 
-    # --- LOGICA VALUTA (Migliorata) ---
-    val_code, tasso, note = "", "", ""
+    # --- LOGICA VALUTA ROBUSTA ---
+    val_code, tasso, note = "", 0.0, ""
     
     if sel_country:
         try:
-            # Filtra il dataframe per il paese selezionato
+            # Trova la riga esatta
             row = df_countries[df_countries[col_p] == sel_country].iloc[0]
             
-            # Cerca la colonna valuta (molto flessibile)
-            possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c or 'moneta' in c]
+            # Cerca colonne valuta con vari nomi possibili
+            possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c]
+            
             if possible_cols:
-                col_v = possible_cols[0] # Prende la prima che trova
+                col_v = possible_cols[0]
                 val_code = str(row[col_v]).strip()
             else:
-                val_code = "EUR" # Default se non trova colonna
+                val_code = "EUR"
             
-            # Calcolo Tasso
-            if val_code and val_code != 'EUR':
+            # Se la valuta è vuota o nan, forza EUR o errore
+            if val_code == 'nan' or val_code == '': val_code = "EUR"
+
+            # API CAMBIO
+            if val_code != 'EUR':
                 api = st.secrets["EXCHANGERATE_API_KEY"]
                 try:
-                    # Tenta storico
                     url = f"https://v6.exchangerate-api.com/v6/{api}/history/{val_code}/{d_chius.year}/{d_chius.month}/{d_chius.day}"
                     res = requests.get(url)
                     if res.status_code == 403: raise Exception
                     tasso = res.json()['conversion_rates']['EUR']
                 except:
-                    # Fallback Oggi
-                    try: 
+                    try:
                         tasso = requests.get(f"https://v6.exchangerate-api.com/v6/{api}/latest/{val_code}").json()['conversion_rates']['EUR']
                         note = "⚠️ Cambio Odierno"
-                    except: 
+                    except:
                         tasso = 0.0
                         note = "Errore API"
-            elif val_code == 'EUR':
+            else:
                 tasso = 1.0
-                
-        except Exception as e:
-            val_code = "Errore"
-            note = f"Dati mancanti: {e}"
 
-    # Visualizzazione Valuta e Tasso
+        except Exception as e:
+            st.error(f"Errore recupero dati paese: {e}")
+
+    # DISPLAY VALUTA
     with col3: st.text_input("Valuta", value=val_code, disabled=True)
-    with col4: st.text_input("Tasso vs EUR", value=f"{tasso:.6f}" if isinstance(tasso, float) else str(tasso), disabled=True, help=note)
+    with col4: st.text_input("Tasso vs EUR", value=f"{tasso:.6f}", disabled=True, help=note)
 
     # --- TABELLA INPUT ---
     st.subheader("Inserimento Dati")
     col_cod = next((c for c in df_accounts.columns if 'code' in c or 'codice' in c), df_accounts.columns[0])
-    col_desc = next((c for c in df_accounts.columns if 'desc' in c), df_accounts.columns[1])
+    # Tenta di trovare descrizione, se no usa la colonna successiva al codice
+    other_cols = [c for c in df_accounts.columns if c != col_cod]
+    col_desc = next((c for c in other_cols if 'desc' in c), other_cols[0] if other_cols else col_cod)
     
     in_df = df_accounts[[col_cod, col_desc]].copy()
     in_df.columns = ['Codice', 'Descrizione']
@@ -230,7 +248,7 @@ def main_app():
                         "PAESE": sel_country,
                         "ANNO": int(d_chius.year),
                         "VALUTA": val_code,
-                        "TASSO DI CAMBIO": float(tasso) if isinstance(tasso, (int, float)) else 0.0,
+                        "TASSO DI CAMBIO": float(tasso),
                         "DATA CHIUSURA": d_chius.isoformat(),
                         "CODICE CONTO": str(r['Codice']),
                         "IMPORTO": float(r['Importo'])
@@ -242,6 +260,7 @@ def main_app():
 # --- 7. PAGINA LOGIN ---
 if not st.session_state['logged_in']:
     st.markdown("<br><br>", unsafe_allow_html=True)
+    
     try:
         st.image("icon_RGB-01.png", width=200)
     except:
@@ -252,7 +271,10 @@ if not st.session_state['logged_in']:
     with st.form("login_form"):
         st.text_input("USERNAME", key="input_user")
         st.text_input("PASSWORD", type="password", key="input_pwd")
+        
+        # IL BOTTONE QUI SOTTO ORA SARÀ ROSSO GRAZIE AL NUOVO CSS
         submit = st.form_submit_button("ENTRA")
+        
         if submit:
             check_login()
             if st.session_state['logged_in']: st.rerun()
