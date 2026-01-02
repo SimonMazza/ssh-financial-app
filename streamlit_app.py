@@ -6,32 +6,50 @@ from datetime import date, datetime
 import time
 
 # --- 1. CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="wide") # Layout wide per vedere meglio i totali
+st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="wide")
 
-# --- 2. CSS DEFINITIVO (NO HOVER & DESIGN) ---
+# --- 2. CSS DEFINITIVO (LAYOUT COMPATTO E NO HOVER) ---
 st.markdown("""
     <style>
     /* RESET GENERALE */
     .stApp { background-color: #ffffff; color: #000000; }
     h1, h2, h3, h4, h5, h6, p, label, .stMarkdown { color: #000000 !important; }
 
-    /* SIDEBAR */
-    [data-testid="stSidebar"] { background-color: #A9093B !important; }
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div { color: #ffffff !important; }
-    [data-testid="stSidebar"] button { background-color: #ffffff !important; color: #A9093B !important; border: none !important; }
+    /* RIDUZIONE SPAZI VUOTI (PAGINA PIÙ COMPATTA) */
+    .block-container {
+        padding-top: 2rem !important; /* Riduce lo spazio in alto */
+        padding-bottom: 2rem !important;
+    }
+    
+    /* Riduce margine sotto il titolo */
+    .stTitle { margin-bottom: -10px !important; } 
 
-    /* MENU A TENDINA */
+    /* --- SIDEBAR (GRIGIO SCURO) --- */
+    [data-testid="stSidebar"] {
+        background-color: #525252 !important; /* Grigio Scuro SSH */
+    }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div {
+        color: #ffffff !important;
+    }
+    /* Bottone Logout nella sidebar */
+    [data-testid="stSidebar"] button {
+        background-color: #ffffff !important;
+        color: #525252 !important;
+        border: none !important;
+    }
+
+    /* --- MENU A TENDINA --- */
     div[data-baseweb="select"] > div { background-color: #e9ecef !important; border: 1px solid #ced4da !important; }
     div[data-baseweb="select"] span { color: #058097 !important; font-weight: 800 !important; }
     div[data-baseweb="select"] svg { fill: #058097 !important; }
     ul[data-baseweb="menu"] { background-color: #ffffff !important; }
     ul[data-baseweb="menu"] li span { color: #058097 !important; }
 
-    /* INPUT FIELDS */
+    /* --- INPUT FIELDS --- */
     input { background-color: #e9ecef !important; border: 1px solid #ced4da !important; color: #A9093B !important; font-weight: bold !important; }
     input:disabled { background-color: #e9ecef !important; color: #A9093B !important; -webkit-text-fill-color: #A9093B !important; opacity: 1 !important; border: 1px solid #ced4da !important; }
 
-    /* --- PULSANTI (NO HOVER EFFECT) --- */
+    /* --- PULSANTI (NO HOVER) --- */
     button, div[data-testid="stFormSubmitButton"] > button {
         background-color: #A9093B !important; 
         color: #ffffff !important; 
@@ -42,10 +60,10 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1px;
         box-shadow: none !important;
-        transition: none !important; /* Disabilita animazioni */
+        transition: none !important;
     }
     
-    /* STATO HOVER IDENTICO ALLA BASE (Blocca il cambio colore) */
+    /* STATO HOVER IDENTICO (BLOCCATO) */
     button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
         background-color: #A9093B !important; 
         color: #ffffff !important; 
@@ -53,34 +71,30 @@ st.markdown("""
         border: none !important;
         transform: none !important;
     }
-
-    button:active, button:focus {
+    button:focus, button:active {
         background-color: #A9093B !important;
         color: #ffffff !important;
         outline: none !important;
     }
 
-    /* TABELLA E DATAFRAME */
+    /* TABELLA E METRICHE */
     [data-testid="stDataFrame"] { background-color: #f8f9fa !important; }
     [data-testid="stDataFrame"] th { background-color: #e0e0e0 !important; color: #000000 !important; }
-
-    /* METRICHE E TOTALI */
     [data-testid="stMetricValue"] { color: #058097 !important; font-weight: bold; }
     [data-testid="stMetricLabel"] { color: #000000 !important; }
 
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CONNESSIONE SUPABASE ---
+# --- 3. CONNESSIONE ---
 @st.cache_resource
 def init_connection():
-    try:
-        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    try: return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
     except: return None
 
 supabase = init_connection()
 
-# --- 4. GESTIONE LOGIN ---
+# --- 4. LOGIN ---
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if 'username' not in st.session_state: st.session_state['username'] = ""
 
@@ -92,9 +106,8 @@ def check_login():
         if len(response.data) > 0:
             st.session_state['logged_in'] = True
             st.session_state['username'] = user
-            st.success("Accesso eseguito.")
-            time.sleep(0.5)
-        else: st.error("Credenziali non valide.")
+            st.success("Accesso eseguito."); time.sleep(0.5)
+        else: st.error("Credenziali errate.")
     except: st.error("Errore connessione.")
 
 def logout(): st.session_state['logged_in'] = False
@@ -118,7 +131,6 @@ def load_config_data():
             df_a = df_a.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
             col_cod = next((c for c in df_a.columns if 'code' in c or 'codice' in c), df_a.columns[0])
             df_a = df_a.sort_values(by=col_cod)
-            
         return df_c, df_a
     except: return pd.DataFrame(), pd.DataFrame()
 
@@ -128,23 +140,24 @@ def main_app():
         st.write(f"Utente: **{st.session_state['username']}**")
         st.button("Logout", on_click=logout)
 
-    # HEADER
-    col_logo, col_title = st.columns([1.5, 3.5])
+    # HEADER COMPATTO
+    col_logo, col_title = st.columns([1, 6]) # Colonna logo stretta per avvicinare il titolo
     with col_logo:
         try:
-            st.image("icon_RGB-01.png", width=200)
-        except:
-            st.error("Logo mancante")
+            # Logo ridotto a 140px per non ingombrare
+            st.image("icon_RGB-01.png", width=140)
+        except: st.error("No Logo")
     with col_title:
+        # Titolo con meno margine (gestito dal CSS)
         st.title("SSH Annual Report")
         st.caption("Financial Data Entry System")
 
     df_countries, df_accounts = load_config_data()
     if df_countries.empty: st.stop()
 
+    # Meno spazio qui
     st.markdown("---")
 
-    # SELEZIONI
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         col_p = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
@@ -180,37 +193,27 @@ def main_app():
     with col3: st.text_input("Valuta", value=val_code, disabled=True)
     with col4: st.text_input("Tasso vs EUR", value=f"{tasso:.6f}", disabled=True, help=note)
 
-    # --- PREPARAZIONE DATI PER EDITOR ---
+    # --- CALCOLO TOTALI ---
     col_cod = next((c for c in df_accounts.columns if 'code' in c or 'codice' in c), df_accounts.columns[0])
     other_cols = [c for c in df_accounts.columns if c != col_cod]
     col_desc = next((c for c in other_cols if 'desc' in c), other_cols[0] if other_cols else col_cod)
     
-    # Cerchiamo colonne TIPO e CLASSE (se esistono su Supabase)
     col_tipo = next((c for c in df_accounts.columns if 'type' in c or 'tipo' in c), None)
     col_classe = next((c for c in df_accounts.columns if 'class' in c or 'classe' in c), None)
     
-    # Prepariamo il DataFrame completo (teniamo Tipo e Classe nascosti ma presenti per i calcoli)
-    # Se non esistono, li creiamo artificialmente per evitare errori
     calc_df = df_accounts.copy()
-    if not col_classe: 
-        # Fallback: Usa la prima cifra del codice come Classe
-        calc_df['classe_calc'] = calc_df[col_cod].astype(str).str[0]
-    else:
-        calc_df['classe_calc'] = calc_df[col_classe]
+    if not col_classe: calc_df['classe_calc'] = calc_df[col_cod].astype(str).str[0]
+    else: calc_df['classe_calc'] = calc_df[col_classe]
 
-    if not col_tipo:
-        calc_df['tipo_calc'] = "Generico"
-    else:
-        calc_df['tipo_calc'] = calc_df[col_tipo]
+    if not col_tipo: calc_df['tipo_calc'] = "Generico"
+    else: calc_df['tipo_calc'] = calc_df[col_tipo]
 
-    # DataFrame visibile all'utente (solo Codice, Descrizione, Importo)
     display_df = calc_df[[col_cod, col_desc]].copy()
     display_df.columns = ['Codice', 'Descrizione']
     display_df['Importo'] = 0.00
     
     st.subheader("Inserimento Dati")
     
-    # EDITOR
     edited_df = st.data_editor(
         display_df,
         column_config={
@@ -218,50 +221,29 @@ def main_app():
             "Descrizione": st.column_config.TextColumn(disabled=True),
             "Importo": st.column_config.NumberColumn("Importo", format="%.2f")
         },
-        use_container_width=True,
-        hide_index=True,
-        height=400
+        use_container_width=True, hide_index=True, height=400
     )
 
-    # --- CALCOLO TOTALI IN TEMPO REALE ---
-    # Uniamo i dati editati con i metadati (Classe e Tipo)
     if not edited_df.empty:
-        # Filtra solo righe con importi
         active_rows = edited_df[edited_df['Importo'] != 0].copy()
-        
         if not active_rows.empty:
-            # Ricostruiamo il link con Tipo e Classe usando l'indice o il codice
-            # Poiché l'ordine è lo stesso, usiamo l'indice per velocità
             active_rows['classe'] = calc_df.loc[active_rows.index, 'classe_calc']
             active_rows['tipo'] = calc_df.loc[active_rows.index, 'tipo_calc']
             
-            st.markdown("### 📊 Riepilogo in Tempo Reale")
+            st.markdown("### 📊 Riepilogo")
             c_tot1, c_tot2, c_tot3 = st.columns(3)
-            
-            # 1. Totale Generale
-            totale_generale = active_rows['Importo'].sum()
-            c_tot1.metric("Totale Inserito", f"{totale_generale:,.2f}")
-
-            # 2. Totali per CLASSE
+            c_tot1.metric("Totale Inserito", f"{active_rows['Importo'].sum():,.2f}")
             with c_tot2:
                 st.markdown("**Totali per CLASSE**")
-                grp_class = active_rows.groupby('classe')['Importo'].sum().reset_index()
-                grp_class.columns = ['Classe', 'Totale']
-                st.dataframe(grp_class.style.format({"Totale": "{:,.2f}"}), hide_index=True, use_container_width=True)
-
-            # 3. Totali per TIPO
+                st.dataframe(active_rows.groupby('classe')['Importo'].sum().reset_index().style.format({"Importo": "{:,.2f}"}), hide_index=True, use_container_width=True)
             with c_tot3:
                 st.markdown("**Totali per TIPO**")
-                grp_tipo = active_rows.groupby('tipo')['Importo'].sum().reset_index()
-                grp_tipo.columns = ['Tipo', 'Totale']
-                st.dataframe(grp_tipo.style.format({"Totale": "{:,.2f}"}), hide_index=True, use_container_width=True)
+                st.dataframe(active_rows.groupby('tipo')['Importo'].sum().reset_index().style.format({"Importo": "{:,.2f}"}), hide_index=True, use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # PULSANTE DI SALVATAGGIO
     if st.button("REGISTRA NEL DATABASE", type="primary"):
         if not sel_country: st.error("Seleziona Paese"); return
-        
         to_save = edited_df[edited_df['Importo'] != 0]
         if to_save.empty: st.warning("Inserisci importo"); return
 
@@ -280,14 +262,15 @@ def main_app():
                         "IMPORTO": float(r['Importo'])
                     })
                 supabase.table('DATABASE').insert(recs).execute()
-                st.success("✅ Dati salvati!"); time.sleep(2); st.rerun()
+                st.success("✅ Salvato!"); time.sleep(2); st.rerun()
             except Exception as e: st.error(f"Errore: {e}")
 
 # --- 7. LOGIN PAGE ---
 if not st.session_state['logged_in']:
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    # Ho rimosso i <br> per avvicinare tutto in alto
     try:
-        st.image("icon_RGB-01.png", width=300)
+        # Logo ridotto a 220px (era 300) per compattezza
+        st.image("icon_RGB-01.png", width=220)
     except:
         st.header("SSH FINANCIAL")
         
