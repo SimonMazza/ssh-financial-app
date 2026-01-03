@@ -1,100 +1,59 @@
 import streamlit as st
 import pandas as pd
 import requests
-from supabase import create_client, Client
+from supabase import create_client
 from datetime import date, datetime
 import time
+import streamlit_shadcn_ui as ui  # <--- NUOVA IMPORTAZIONE
 
 # --- 1. CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="wide") # Layout wide per vedere meglio i totali
+st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="wide")
 
-# --- 2. CSS DEFINITIVO (NO HOVER & DESIGN) ---
+# --- 2. CSS PER LAYOUT (Ridotto perché Shadcn fa il resto) ---
 st.markdown("""
     <style>
     /* RESET GENERALE */
-    .stApp { background-color: #ffffff; color: #000000; }
-    h1, h2, h3, h4, h5, h6, p, label, .stMarkdown { color: #000000 !important; }
-
-    /* SIDEBAR */
-    [data-testid="stSidebar"] { background-color: #A9093B !important; }
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div { color: #ffffff !important; }
-    [data-testid="stSidebar"] button { background-color: #ffffff !important; color: #A9093B !important; border: none !important; }
-
-    /* MENU A TENDINA */
-    div[data-baseweb="select"] > div { background-color: #e9ecef !important; border: 1px solid #ced4da !important; }
-    div[data-baseweb="select"] span { color: #058097 !important; font-weight: 800 !important; }
-    div[data-baseweb="select"] svg { fill: #058097 !important; }
-    ul[data-baseweb="menu"] { background-color: #ffffff !important; }
-    ul[data-baseweb="menu"] li span { color: #058097 !important; }
-
-    /* INPUT FIELDS */
-    input { background-color: #e9ecef !important; border: 1px solid #ced4da !important; color: #A9093B !important; font-weight: bold !important; }
-    input:disabled { background-color: #e9ecef !important; color: #A9093B !important; -webkit-text-fill-color: #A9093B !important; opacity: 1 !important; border: 1px solid #ced4da !important; }
-
-    /* --- PULSANTI (NO HOVER EFFECT) --- */
-    button, div[data-testid="stFormSubmitButton"] > button {
-        background-color: #A9093B !important; 
-        color: #ffffff !important; 
-        border: none !important;
-        border-radius: 6px !important;
-        font-weight: 800 !important;
-        padding: 0.75rem 1.5rem !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        box-shadow: none !important;
-        transition: none !important; /* Disabilita animazioni */
+    .stApp { background-color: #ffffff; }
+    
+    /* RIDUZIONE SPAZI */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
     }
     
-    /* STATO HOVER IDENTICO ALLA BASE (Blocca il cambio colore) */
-    button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #A9093B !important; 
-        color: #ffffff !important; 
-        box-shadow: none !important;
-        border: none !important;
-        transform: none !important;
-    }
-
-    button:active, button:focus {
-        background-color: #A9093B !important;
-        color: #ffffff !important;
-        outline: none !important;
-    }
-
-    /* TABELLA E DATAFRAME */
-    [data-testid="stDataFrame"] { background-color: #f8f9fa !important; }
-    [data-testid="stDataFrame"] th { background-color: #e0e0e0 !important; color: #000000 !important; }
-
-    /* METRICHE E TOTALI */
-    [data-testid="stMetricValue"] { color: #058097 !important; font-weight: bold; }
-    [data-testid="stMetricLabel"] { color: #000000 !important; }
-
+    /* SIDEBAR CUSTOM (Manteniamo lo stile scuro richiesto) */
+    [data-testid="stSidebar"] { background-color: #525252 !important; }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div { color: white !important; }
+    
+    /* I componenti Shadcn sono incapsulati, il CSS qui sotto influisce solo su elementi standard rimasti */
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CONNESSIONE SUPABASE ---
+# --- 3. CONNESSIONE ---
 @st.cache_resource
 def init_connection():
-    try:
-        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    try: return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
     except: return None
 
 supabase = init_connection()
 
-# --- 4. GESTIONE LOGIN ---
+# --- 4. LOGIN ---
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if 'username' not in st.session_state: st.session_state['username'] = ""
 
 def check_login():
-    user = st.session_state['input_user']
-    pwd = st.session_state['input_pwd']
+    # Usiamo input standard qui per semplicità nel form
+    user = st.session_state.get('input_user', '')
+    pwd = st.session_state.get('input_pwd', '')
     try:
         response = supabase.table('UTENTI').select("*").eq('UTENTE', user).eq('PWD', pwd).execute()
         if len(response.data) > 0:
             st.session_state['logged_in'] = True
             st.session_state['username'] = user
-            st.success("Accesso eseguito.")
+            st.toast("Accesso eseguito!", icon="✅") # Shadcn style toast
             time.sleep(0.5)
-        else: st.error("Credenziali non valide.")
+        else:
+            st.error("Credenziali errate.")
     except: st.error("Errore connessione.")
 
 def logout(): st.session_state['logged_in'] = False
@@ -118,7 +77,6 @@ def load_config_data():
             df_a = df_a.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
             col_cod = next((c for c in df_a.columns if 'code' in c or 'codice' in c), df_a.columns[0])
             df_a = df_a.sort_values(by=col_cod)
-            
         return df_c, df_a
     except: return pd.DataFrame(), pd.DataFrame()
 
@@ -126,15 +84,16 @@ def load_config_data():
 def main_app():
     with st.sidebar:
         st.write(f"Utente: **{st.session_state['username']}**")
-        st.button("Logout", on_click=logout)
+        # Bottone Shadcn nella sidebar
+        if ui.button("Logout", key="btn_logout", variant="outline"):
+            logout()
+            st.rerun()
 
     # HEADER
-    col_logo, col_title = st.columns([1.5, 3.5])
+    col_logo, col_title = st.columns([1, 6]) 
     with col_logo:
-        try:
-            st.image("icon_RGB-01.png", width=200)
-        except:
-            st.error("Logo mancante")
+        try: st.image("icon_RGB-01.png", width=140)
+        except: st.warning("No Logo")
     with col_title:
         st.title("SSH Annual Report")
         st.caption("Financial Data Entry System")
@@ -142,25 +101,33 @@ def main_app():
     df_countries, df_accounts = load_config_data()
     if df_countries.empty: st.stop()
 
-    st.markdown("---")
+    ui.table_header("Configurazione", "") # Separatore stile Shadcn
 
-    # SELEZIONI
     col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
         col_p = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
         lista_paesi = df_countries[col_p].unique().tolist()
-        sel_country = st.selectbox("Seleziona Paese", [""] + lista_paesi)
+        
+        # --- COMPONENTE SHADCN SELECT ---
+        # Nota: Shadcn Select ritorna direttamente il valore
+        st.write("Paese") # Label manuale
+        sel_country = ui.select(options=[""] + lista_paesi, key="sel_country_shadcn")
+        
     with col2:
-        d_chius = st.date_input("Data di Chiusura", date.today())
+        st.write("Data Chiusura")
+        # ui.date_picker esiste ma st.date_input è spesso più stabile per le date
+        d_chius = st.date_input("Data", date.today(), label_visibility="collapsed")
 
+    # Logica Valute (Identica a prima)
     val_code, tasso, note = "", 0.0, ""
-    
     if sel_country:
+        # (Logica identica per recupero tasso...)
         try:
             row = df_countries[df_countries[col_p] == sel_country].iloc[0]
             possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c]
             val_code = str(row[possible_cols[0]]).strip() if possible_cols else "EUR"
-            if val_code == 'nan' or val_code == '': val_code = "EUR"
+            if val_code in ['nan', '']: val_code = "EUR"
 
             if val_code != 'EUR':
                 api = st.secrets["EXCHANGERATE_API_KEY"]
@@ -177,40 +144,31 @@ def main_app():
             else: tasso = 1.0
         except: val_code = "ERR"
 
-    with col3: st.text_input("Valuta", value=val_code, disabled=True)
-    with col4: st.text_input("Tasso vs EUR", value=f"{tasso:.6f}", disabled=True, help=note)
+    # Shadcn Cards per mostrare Valuta e Tasso
+    with col3:
+        ui.metric_card(title="Valuta", content=val_code, description="Codice ISO")
+    with col4:
+        ui.metric_card(title="Tasso vs EUR", content=f"{tasso:.4f}", description=note if note else "Storico")
 
-    # --- PREPARAZIONE DATI PER EDITOR ---
+    # --- CALCOLO TOTALI ---
+    # (Logica preparazione dataframe identica...)
     col_cod = next((c for c in df_accounts.columns if 'code' in c or 'codice' in c), df_accounts.columns[0])
     other_cols = [c for c in df_accounts.columns if c != col_cod]
     col_desc = next((c for c in other_cols if 'desc' in c), other_cols[0] if other_cols else col_cod)
-    
-    # Cerchiamo colonne TIPO e CLASSE (se esistono su Supabase)
     col_tipo = next((c for c in df_accounts.columns if 'type' in c or 'tipo' in c), None)
     col_classe = next((c for c in df_accounts.columns if 'class' in c or 'classe' in c), None)
     
-    # Prepariamo il DataFrame completo (teniamo Tipo e Classe nascosti ma presenti per i calcoli)
-    # Se non esistono, li creiamo artificialmente per evitare errori
     calc_df = df_accounts.copy()
-    if not col_classe: 
-        # Fallback: Usa la prima cifra del codice come Classe
-        calc_df['classe_calc'] = calc_df[col_cod].astype(str).str[0]
-    else:
-        calc_df['classe_calc'] = calc_df[col_classe]
+    calc_df['classe_calc'] = calc_df[col_classe] if col_classe else calc_df[col_cod].astype(str).str[0]
+    calc_df['tipo_calc'] = calc_df[col_tipo] if col_tipo else "Generico"
 
-    if not col_tipo:
-        calc_df['tipo_calc'] = "Generico"
-    else:
-        calc_df['tipo_calc'] = calc_df[col_tipo]
-
-    # DataFrame visibile all'utente (solo Codice, Descrizione, Importo)
     display_df = calc_df[[col_cod, col_desc]].copy()
     display_df.columns = ['Codice', 'Descrizione']
     display_df['Importo'] = 0.00
     
-    st.subheader("Inserimento Dati")
+    st.markdown("### Inserimento Dati")
     
-    # EDITOR
+    # Manteniamo st.data_editor (Shadcn non ha una tabella editabile potente)
     edited_df = st.data_editor(
         display_df,
         column_config={
@@ -218,85 +176,70 @@ def main_app():
             "Descrizione": st.column_config.TextColumn(disabled=True),
             "Importo": st.column_config.NumberColumn("Importo", format="%.2f")
         },
-        use_container_width=True,
-        hide_index=True,
-        height=400
+        use_container_width=True, hide_index=True, height=400
     )
 
-    # --- CALCOLO TOTALI IN TEMPO REALE ---
-    # Uniamo i dati editati con i metadati (Classe e Tipo)
     if not edited_df.empty:
-        # Filtra solo righe con importi
         active_rows = edited_df[edited_df['Importo'] != 0].copy()
-        
         if not active_rows.empty:
-            # Ricostruiamo il link con Tipo e Classe usando l'indice o il codice
-            # Poiché l'ordine è lo stesso, usiamo l'indice per velocità
             active_rows['classe'] = calc_df.loc[active_rows.index, 'classe_calc']
             active_rows['tipo'] = calc_df.loc[active_rows.index, 'tipo_calc']
             
-            st.markdown("### 📊 Riepilogo in Tempo Reale")
+            ui.table_header("Riepilogo", "Dati pronti per il salvataggio")
             c_tot1, c_tot2, c_tot3 = st.columns(3)
-            
-            # 1. Totale Generale
-            totale_generale = active_rows['Importo'].sum()
-            c_tot1.metric("Totale Inserito", f"{totale_generale:,.2f}")
-
-            # 2. Totali per CLASSE
-            with c_tot2:
-                st.markdown("**Totali per CLASSE**")
-                grp_class = active_rows.groupby('classe')['Importo'].sum().reset_index()
-                grp_class.columns = ['Classe', 'Totale']
-                st.dataframe(grp_class.style.format({"Totale": "{:,.2f}"}), hide_index=True, use_container_width=True)
-
-            # 3. Totali per TIPO
-            with c_tot3:
-                st.markdown("**Totali per TIPO**")
-                grp_tipo = active_rows.groupby('tipo')['Importo'].sum().reset_index()
-                grp_tipo.columns = ['Tipo', 'Totale']
-                st.dataframe(grp_tipo.style.format({"Totale": "{:,.2f}"}), hide_index=True, use_container_width=True)
+            with c_tot1:
+                ui.metric_card(title="Totale", content=f"{active_rows['Importo'].sum():,.2f}", description="EUR")
+            # Per le tabelle di riepilogo usiamo dataframe standard per leggibilità
+            with c_tot2: st.dataframe(active_rows.groupby('classe')['Importo'].sum().reset_index(), hide_index=True)
+            with c_tot3: st.dataframe(active_rows.groupby('tipo')['Importo'].sum().reset_index(), hide_index=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # PULSANTE DI SALVATAGGIO
-    if st.button("REGISTRA NEL DATABASE", type="primary"):
-        if not sel_country: st.error("Seleziona Paese"); return
-        
-        to_save = edited_df[edited_df['Importo'] != 0]
-        if to_save.empty: st.warning("Inserisci importo"); return
-
-        with st.spinner("Salvataggio..."):
-            try:
-                recs = []
-                for idx, r in to_save.iterrows():
-                    recs.append({
-                        "ID": datetime.now().isoformat(),
-                        "PAESE": sel_country,
-                        "ANNO": int(d_chius.year),
-                        "VALUTA": val_code,
-                        "TASSO DI CAMBIO": float(tasso),
-                        "DATA CHIUSURA": d_chius.isoformat(),
-                        "CODICE CONTO": str(r['Codice']),
-                        "IMPORTO": float(r['Importo'])
-                    })
-                supabase.table('DATABASE').insert(recs).execute()
-                st.success("✅ Dati salvati!"); time.sleep(2); st.rerun()
-            except Exception as e: st.error(f"Errore: {e}")
+    # --- BOTTONE SHADCN ---
+    # Variant "default" è nero/scuro, "destructive" è rosso, "secondary" è grigio chiaro
+    if ui.button("REGISTRA NEL DATABASE", key="btn_save", variant="default"):
+        if not sel_country: 
+            st.error("Seleziona Paese")
+        else:
+            to_save = edited_df[edited_df['Importo'] != 0]
+            if to_save.empty: 
+                st.warning("Inserisci importo")
+            else:
+                with st.spinner("Salvataggio..."):
+                    try:
+                        recs = []
+                        for idx, r in to_save.iterrows():
+                            recs.append({
+                                "ID": datetime.now().isoformat(),
+                                "PAESE": sel_country,
+                                "ANNO": int(d_chius.year),
+                                "VALUTA": val_code,
+                                "TASSO DI CAMBIO": float(tasso),
+                                "DATA CHIUSURA": d_chius.isoformat(),
+                                "CODICE CONTO": str(r['Codice']),
+                                "IMPORTO": float(r['Importo'])
+                            })
+                        supabase.table('DATABASE').insert(recs).execute()
+                        st.balloons() # Effetto festa
+                        ui.badges(badge_list=[("Dati Salvati", "default")], key="badge_ok")
+                        time.sleep(2)
+                        st.rerun()
+                    except Exception as e: st.error(f"Errore: {e}")
 
 # --- 7. LOGIN PAGE ---
 if not st.session_state['logged_in']:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    try:
-        st.image("icon_RGB-01.png", width=300)
-    except:
-        st.header("SSH FINANCIAL")
+    col_c = st.columns([1,2,1])
+    with col_c[1]:
+        try: st.image("icon_RGB-01.png", width=220)
+        except: st.header("SSH FINANCIAL")
         
-    st.markdown("### Accesso Riservato")
-    with st.form("login_form"):
-        st.text_input("USERNAME", key="input_user")
-        st.text_input("PASSWORD", type="password", key="input_pwd")
-        submit = st.form_submit_button("ENTRA")
-        if submit:
+        ui.table_header("Login", "Accesso Riservato")
+        
+        # Form manuale perché Shadcn input non lavora bene dentro st.form
+        user_in = st.text_input("USERNAME", key="input_user")
+        pwd_in = st.text_input("PASSWORD", type="password", key="input_pwd")
+        
+        if ui.button("ENTRA", key="btn_login", variant="default"):
             check_login()
             if st.session_state['logged_in']: st.rerun()
 else:
