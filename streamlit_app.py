@@ -4,28 +4,20 @@ import requests
 from supabase import create_client
 from datetime import date, datetime
 import time
-import streamlit_shadcn_ui as ui  # <--- NUOVA IMPORTAZIONE
+import streamlit_shadcn_ui as ui 
 
 # --- 1. CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="wide")
 
-# --- 2. CSS PER LAYOUT (Ridotto perché Shadcn fa il resto) ---
+# --- 2. CSS MINIMO (Solo per layout e sidebar) ---
 st.markdown("""
     <style>
-    /* RESET GENERALE */
     .stApp { background-color: #ffffff; }
+    .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; }
     
-    /* RIDUZIONE SPAZI */
-    .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 2rem !important;
-    }
-    
-    /* SIDEBAR CUSTOM (Manteniamo lo stile scuro richiesto) */
+    /* Sidebar Scura */
     [data-testid="stSidebar"] { background-color: #525252 !important; }
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div { color: white !important; }
-    
-    /* I componenti Shadcn sono incapsulati, il CSS qui sotto influisce solo su elementi standard rimasti */
     </style>
 """, unsafe_allow_html=True)
 
@@ -42,7 +34,6 @@ if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if 'username' not in st.session_state: st.session_state['username'] = ""
 
 def check_login():
-    # Usiamo input standard qui per semplicità nel form
     user = st.session_state.get('input_user', '')
     pwd = st.session_state.get('input_pwd', '')
     try:
@@ -50,7 +41,8 @@ def check_login():
         if len(response.data) > 0:
             st.session_state['logged_in'] = True
             st.session_state['username'] = user
-            st.toast("Accesso eseguito!", icon="✅") # Shadcn style toast
+            # Toast notifica (nativo Streamlit)
+            st.toast("Accesso eseguito!", icon="✅")
             time.sleep(0.5)
         else:
             st.error("Credenziali errate.")
@@ -84,7 +76,6 @@ def load_config_data():
 def main_app():
     with st.sidebar:
         st.write(f"Utente: **{st.session_state['username']}**")
-        # Bottone Shadcn nella sidebar
         if ui.button("Logout", key="btn_logout", variant="outline"):
             logout()
             st.rerun()
@@ -101,7 +92,9 @@ def main_app():
     df_countries, df_accounts = load_config_data()
     if df_countries.empty: st.stop()
 
-    ui.table_header("Configurazione", "") # Separatore stile Shadcn
+    # --- SEZIONE CONFIGURAZIONE ---
+    st.markdown("### Configurazione") # Sostituito ui.table_header
+    st.markdown("---")
 
     col1, col2, col3, col4 = st.columns(4)
     
@@ -109,20 +102,16 @@ def main_app():
         col_p = next((c for c in df_countries.columns if 'paese' in c or 'country' in c), df_countries.columns[0])
         lista_paesi = df_countries[col_p].unique().tolist()
         
-        # --- COMPONENTE SHADCN SELECT ---
-        # Nota: Shadcn Select ritorna direttamente il valore
-        st.write("Paese") # Label manuale
+        st.markdown("**Paese**")
         sel_country = ui.select(options=[""] + lista_paesi, key="sel_country_shadcn")
         
     with col2:
-        st.write("Data Chiusura")
-        # ui.date_picker esiste ma st.date_input è spesso più stabile per le date
+        st.markdown("**Data Chiusura**")
         d_chius = st.date_input("Data", date.today(), label_visibility="collapsed")
 
-    # Logica Valute (Identica a prima)
+    # Logica Valute
     val_code, tasso, note = "", 0.0, ""
     if sel_country:
-        # (Logica identica per recupero tasso...)
         try:
             row = df_countries[df_countries[col_p] == sel_country].iloc[0]
             possible_cols = [c for c in df_countries.columns if 'curr' in c or 'val' in c or 'sym' in c]
@@ -144,14 +133,12 @@ def main_app():
             else: tasso = 1.0
         except: val_code = "ERR"
 
-    # Shadcn Cards per mostrare Valuta e Tasso
     with col3:
         ui.metric_card(title="Valuta", content=val_code, description="Codice ISO")
     with col4:
         ui.metric_card(title="Tasso vs EUR", content=f"{tasso:.4f}", description=note if note else "Storico")
 
     # --- CALCOLO TOTALI ---
-    # (Logica preparazione dataframe identica...)
     col_cod = next((c for c in df_accounts.columns if 'code' in c or 'codice' in c), df_accounts.columns[0])
     other_cols = [c for c in df_accounts.columns if c != col_cod]
     col_desc = next((c for c in other_cols if 'desc' in c), other_cols[0] if other_cols else col_cod)
@@ -166,9 +153,8 @@ def main_app():
     display_df.columns = ['Codice', 'Descrizione']
     display_df['Importo'] = 0.00
     
-    st.markdown("### Inserimento Dati")
+    st.markdown("### Inserimento Dati") # Sostituito ui.table_header
     
-    # Manteniamo st.data_editor (Shadcn non ha una tabella editabile potente)
     edited_df = st.data_editor(
         display_df,
         column_config={
@@ -185,18 +171,18 @@ def main_app():
             active_rows['classe'] = calc_df.loc[active_rows.index, 'classe_calc']
             active_rows['tipo'] = calc_df.loc[active_rows.index, 'tipo_calc']
             
-            ui.table_header("Riepilogo", "Dati pronti per il salvataggio")
+            st.markdown("### Riepilogo") # Sostituito ui.table_header
+            st.caption("Dati pronti per il salvataggio")
+            
             c_tot1, c_tot2, c_tot3 = st.columns(3)
             with c_tot1:
                 ui.metric_card(title="Totale", content=f"{active_rows['Importo'].sum():,.2f}", description="EUR")
-            # Per le tabelle di riepilogo usiamo dataframe standard per leggibilità
             with c_tot2: st.dataframe(active_rows.groupby('classe')['Importo'].sum().reset_index(), hide_index=True)
             with c_tot3: st.dataframe(active_rows.groupby('tipo')['Importo'].sum().reset_index(), hide_index=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- BOTTONE SHADCN ---
-    # Variant "default" è nero/scuro, "destructive" è rosso, "secondary" è grigio chiaro
+    # --- BOTTONE SALVATAGGIO ---
     if ui.button("REGISTRA NEL DATABASE", key="btn_save", variant="default"):
         if not sel_country: 
             st.error("Seleziona Paese")
@@ -220,7 +206,7 @@ def main_app():
                                 "IMPORTO": float(r['Importo'])
                             })
                         supabase.table('DATABASE').insert(recs).execute()
-                        st.balloons() # Effetto festa
+                        st.balloons()
                         ui.badges(badge_list=[("Dati Salvati", "default")], key="badge_ok")
                         time.sleep(2)
                         st.rerun()
@@ -233,9 +219,9 @@ if not st.session_state['logged_in']:
         try: st.image("icon_RGB-01.png", width=220)
         except: st.header("SSH FINANCIAL")
         
-        ui.table_header("Login", "Accesso Riservato")
+        st.markdown("### Login") # Sostituito ui.table_header
+        st.caption("Accesso Riservato")
         
-        # Form manuale perché Shadcn input non lavora bene dentro st.form
         user_in = st.text_input("USERNAME", key="input_user")
         pwd_in = st.text_input("PASSWORD", type="password", key="input_pwd")
         
