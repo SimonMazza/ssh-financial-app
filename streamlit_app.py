@@ -8,7 +8,7 @@ import time
 # --- 1. CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="SSH Annual Report", page_icon="📊", layout="wide")
 
-# --- 2. CSS AGGIORNATO (MENU GRIGIO/ROSSO + TASTI STABILI) ---
+# --- 2. CSS DEFINITIVO (LAYOUT COMPATTO E NO HOVER) ---
 st.markdown("""
     <style>
     /* RESET GENERALE */
@@ -17,88 +17,70 @@ st.markdown("""
 
     /* RIDUZIONE SPAZI VUOTI (PAGINA PIÙ COMPATTA) */
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 2rem !important; /* Riduce lo spazio in alto */
         padding-bottom: 2rem !important;
     }
+    
+    /* Riduce margine sotto il titolo */
     .stTitle { margin-bottom: -10px !important; } 
 
     /* --- SIDEBAR (GRIGIO SCURO) --- */
     [data-testid="stSidebar"] {
-        background-color: #525252 !important; 
+        background-color: #525252 !important; /* Grigio Scuro SSH */
     }
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div {
         color: #ffffff !important;
     }
+    /* Bottone Logout nella sidebar */
     [data-testid="stSidebar"] button {
         background-color: #ffffff !important;
         color: #525252 !important;
         border: none !important;
     }
 
-    /* --- MENU A TENDINA (Selectbox) - MODIFICATO --- */
-    /* 1. Il box principale: Grigio Chiaro */
-    div[data-baseweb="select"] > div { 
-        background-color: #e0e0e0 !important; 
-        border: 1px solid #ccc !important; 
-    }
-    
-    /* 2. Il testo selezionato e le opzioni: ROSSO */
-    div[data-baseweb="select"] span { 
-        color: red !important; 
-        font-weight: bold !important; 
-        caret-color: red !important;
-    }
-    
-    /* 3. La freccina del menu: ROSSA */
-    div[data-baseweb="select"] svg { 
-        fill: red !important; 
-    }
-    
-    /* 4. Il menu a discesa aperto */
-    ul[data-baseweb="menu"] { 
-        background-color: #e0e0e0 !important; 
-    }
+    /* --- MENU A TENDINA --- */
+    div[data-baseweb="select"] > div { background-color: #e9ecef !important; border: 1px solid #ced4da !important; }
+    div[data-baseweb="select"] span { color: #058097 !important; font-weight: 800 !important; }
+    div[data-baseweb="select"] svg { fill: #058097 !important; }
+    ul[data-baseweb="menu"] { background-color: #ffffff !important; }
+    ul[data-baseweb="menu"] li span { color: #058097 !important; }
 
-    /* --- INPUT FIELDS (Campi testo normali) --- */
-    input { 
-        background-color: #e9ecef !important; 
-        border: 1px solid #ced4da !important; 
-        color: #000 !important; 
-        font-weight: bold !important; 
-    }
-    
-    /* --- PULSANTI (BUTTONS) - STILE STABILE --- */
-    /* Colore Base: Nero (o grigio molto scuro) per massima stabilità */
+    /* --- INPUT FIELDS --- */
+    input { background-color: #e9ecef !important; border: 1px solid #ced4da !important; color: #A9093B !important; font-weight: bold !important; }
+    input:disabled { background-color: #e9ecef !important; color: #A9093B !important; -webkit-text-fill-color: #A9093B !important; opacity: 1 !important; border: 1px solid #ced4da !important; }
+
+    /* --- PULSANTI (NO HOVER) --- */
     button, div[data-testid="stFormSubmitButton"] > button {
-        background-color: #000000 !important; 
+        background-color: #A9093B !important; 
         color: #ffffff !important; 
         border: none !important;
         border-radius: 6px !important;
+        font-weight: 800 !important;
         padding: 0.75rem 1.5rem !important;
-        font-weight: bold !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
         box-shadow: none !important;
-        transition: background-color 0.2s ease !important;
+        transition: none !important;
     }
     
-    /* Colore Hover: Grigio Scuro (Niente colori strani) */
+    /* STATO HOVER IDENTICO (BLOCCATO) */
     button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #333333 !important; 
+        background-color: #A9093B !important; 
         color: #ffffff !important; 
+        box-shadow: none !important;
         border: none !important;
         transform: none !important;
     }
-    
     button:focus, button:active {
-        background-color: #000000 !important;
+        background-color: #A9093B !important;
         color: #ffffff !important;
         outline: none !important;
-        border: none !important;
     }
 
     /* TABELLA E METRICHE */
     [data-testid="stDataFrame"] { background-color: #f8f9fa !important; }
     [data-testid="stDataFrame"] th { background-color: #e0e0e0 !important; color: #000000 !important; }
-    [data-testid="stMetricValue"] { color: #000000 !important; font-weight: bold; }
+    [data-testid="stMetricValue"] { color: #058097 !important; font-weight: bold; }
     [data-testid="stMetricLabel"] { color: #000000 !important; }
 
     </style>
@@ -159,18 +141,21 @@ def main_app():
         st.button("Logout", on_click=logout)
 
     # HEADER COMPATTO
-    col_logo, col_title = st.columns([1, 6]) 
+    col_logo, col_title = st.columns([1, 6]) # Colonna logo stretta per avvicinare il titolo
     with col_logo:
         try:
+            # Logo ridotto a 140px per non ingombrare
             st.image("icon_RGB-01.png", width=140)
         except: st.error("No Logo")
     with col_title:
+        # Titolo con meno margine (gestito dal CSS)
         st.title("SSH Annual Report")
         st.caption("Financial Data Entry System")
 
     df_countries, df_accounts = load_config_data()
     if df_countries.empty: st.stop()
 
+    # Meno spazio qui
     st.markdown("---")
 
     col1, col2, col3, col4 = st.columns(4)
@@ -282,7 +267,9 @@ def main_app():
 
 # --- 7. LOGIN PAGE ---
 if not st.session_state['logged_in']:
+    # Ho rimosso i <br> per avvicinare tutto in alto
     try:
+        # Logo ridotto a 220px (era 300) per compattezza
         st.image("icon_RGB-01.png", width=220)
     except:
         st.header("SSH FINANCIAL")
